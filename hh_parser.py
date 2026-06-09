@@ -152,50 +152,35 @@ class VacancyDatabase:
     def save_employer(self, employer_data: Dict) -> bool:
         try:
             employer_id = employer_data.get('id')
-            contacts = employer_data.get('contacts', {})
             if not employer_id:
                 return False
 
+            name = employer_data.get('name', '')
+            description = employer_data.get('description', '')
+            site_url = employer_data.get('site_url', '')
+            area_name = employer_data.get('area_name', '')
+
             if self.employer_exists(employer_id):
                 update_sql = """
-                UPDATE employer SET
-                    name = %s,
-                    description = %s,
-                    site_url = %s,
-                    area_name = %s,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = %s
+                    UPDATE employer SET
+                        name = %s,
+                        description = %s,
+                        site_url = %s,
+                        area_name = %s,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = %s
                 """
-
-                update_params = (
-                    contacts.get('name', ''),
-                    contacts.get('description', ''),
-                    contacts.get('site_url', ''),
-                    contacts.get('area', ''),
-                    employer_id
-                )
-                self.cursor.execute(update_sql, update_params)
-                self.connection.commit()
-                return True
+                self.cursor.execute(update_sql, (name, description, site_url, area_name, employer_id))
 
             else:
                 sql = """
-                INSERT INTO employer (
-                    id, name, description, site_url, area_name
-                ) VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO employer (id, name, description, site_url, area_name)
+                    VALUES (%s, %s, %s, %s, %s)
                 """
+                self.cursor.execute(sql, (employer_id, name, description, site_url, area_name))
 
-                params = (
-                    employer_id,
-                    contacts.get('name', ''),
-                    contacts.get('description', ''),
-                    contacts.get('site_url', ''),
-                    contacts.get('area', '')
-                )
-
-                self.cursor.execute(sql, params)
-                self.connection.commit()
-                return True
+            self.connection.commit()
+            return True
 
         except Exception as e:
             print(f"Ошибка сохранения работодателя: {e}")
@@ -393,7 +378,8 @@ def main():
         employer_id = vacancy.get('employer_id')
         if employer_id and employer_id not in unique_employers:
             employer_data = parser.process_employer_item(employer_id)
-            unique_employers[employer_id] = employer_data
+            if employer_data:
+                unique_employers[employer_id] = employer_data
 
     for employer_data in unique_employers.values():
         db.save_employer(employer_data)
